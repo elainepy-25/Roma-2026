@@ -21,10 +21,8 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 背景底圖 */
         .bg-rome-sketch { background-image: url('https://img.freepik.com/free-vector/hand-drawn-rome-landmark-pattern_23-2149463959.jpg'); background-size: 400px; background-blend-mode: overlay; opacity: 0.15; position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
         
-        /* 拖曳效果 */
         .sortable-ghost { opacity: 0.2; background-color: #ef4444; border: 2px dashed #8E3228; }
         .sortable-drag { cursor: grabbing !important; opacity: 1; background: white; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2); transform: scale(1.02); z-index: 9999; }
         .item-card { cursor: grab; transition: transform 0.1s; position: relative; }
@@ -32,7 +30,6 @@
 
         #map-container { z-index: 1; height: 100%; width: 100%; border-radius: 0.75rem; }
         
-        /* 地圖標記 */
         .custom-pin-icon { background-color: #8E3228; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 2px rgba(142, 50, 40, 0.3), 0 3px 6px rgba(0,0,0,0.4); }
         .leaflet-popup-content-wrapper { border-radius: 8px; padding: 0; }
         .leaflet-popup-content { margin: 0; font-family: 'Noto Sans TC'; min-width: 200px; }
@@ -40,13 +37,11 @@
         .popup-body { padding: 12px; font-size: 13px; color: #4b5563; }
         .popup-btn { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; background: #2563eb; color: white; padding: 8px; margin-top: 8px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px; }
         
-        /* 介面顏色 */
         .date-active { background-color: #8E3228 !important; border-color: #8E3228 !important; color: white !important; transform: scale(1.05); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
         .date-inactive { background-color: white; color: #6b7280; border-color: #e5e7eb; }
         .fab-btn { background-color: #8E3228; box-shadow: 0 10px 20px -5px rgba(127, 29, 29, 0.5); border: 2px solid white; }
         .fab-btn:active { background-color: #450a0a; transform: scale(0.95); }
         
-        /* 搜尋建議 */
         .suggestions-list { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); z-index: 50; max-height: 200px; overflow-y: auto; }
         .suggestion-item { padding: 0.75rem 1rem; font-size: 0.875rem; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
         .suggestion-item:hover { background-color: #fff1f2; color: #8E3228; }
@@ -56,12 +51,16 @@
 
         /* 按鈕優化 */
         .btn-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: all 0.2s; cursor: pointer; }
-        .btn-edit:hover { background-color: #f3f4f6; color: #8E3228; }
+        .btn-edit:hover { background-color: #e5e7eb; color: #374151; }
         .btn-delete:hover { background-color: #fee2e2; color: #dc2626; }
-        .card-actions { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; padding-left: 12px; border-left: 1px solid #f3f4f6; margin-left: auto; min-width: 50px; background-color: #f9fafb; }
+        .card-actions { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; padding-left: 12px; border-left: 1px solid #f3f4f6; margin-left: auto; min-width: 50px; background-color: #f9fafb; }
+        
+        #debug-console { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); color: #ef4444; z-index: 99999; padding: 20px; font-family: monospace; overflow: auto; }
     </style>
 </head>
 <body class="h-screen overflow-hidden flex flex-col items-center justify-center bg-[#e5e5e5]">
+
+    <div id="debug-console"><h2 class="text-2xl font-bold text-white mb-4">⚠️ 錯誤回報</h2><pre id="error-msg" class="bg-gray-800 p-4 rounded text-sm whitespace-pre-wrap"></pre><button onclick="location.reload()" class="mt-4 bg-white text-black px-4 py-2 rounded font-bold">重新載入</button></div>
 
     <div id="app" class="w-full max-w-md h-full sm:h-[95vh] sm:rounded-3xl sm:border-4 sm:border-white sm:shadow-2xl flex flex-col relative bg-[#f5f0e6] overflow-hidden" v-cloak>
         <div class="bg-rome-sketch"></div>
@@ -115,8 +114,8 @@
                             </a>
                         </div>
                         <div class="card-actions">
-                            <button @click.stop.prevent="editItem(item)" class="btn-icon btn-edit"><i class="fa-solid fa-pen text-sm"></i></button>
-                            <button @click.stop.prevent="deleteItem(item.id, 'itinerary')" class="btn-icon btn-delete"><i class="fa-solid fa-trash text-sm"></i></button>
+                            <button @click.stop.prevent="editItem(item)" class="btn-icon bg-gray-100 text-gray-500 hover:text-gray-900"><i class="fa-solid fa-pen text-sm"></i></button>
+                            <button @click.stop.prevent="deleteItem(item.id, 'itinerary')" class="btn-icon bg-red-50 text-red-500 hover:bg-red-500 hover:text-white"><i class="fa-solid fa-trash text-sm"></i></button>
                         </div>
                     </div>
                 </div>
@@ -143,7 +142,7 @@
                         </div>
                         <div class="flex items-center gap-3 pr-2">
                             <span class="font-bold font-mono text-sm" :class="exp.currency === 'EUR' ? 'text-gray-800' : 'text-blue-600'">{{ exp.currency === 'EUR' ? '€' : 'NT$' }}{{ exp.amount }}</span>
-                            <button @click.stop.prevent="deleteItem(exp.id, 'expenses')" class="btn-icon btn-delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                            <button @click.stop.prevent="deleteItem(exp.id, 'expenses')" class="btn-icon bg-red-50 text-red-500 hover:bg-red-500 hover:text-white"><i class="fa-solid fa-trash text-xs"></i></button>
                         </div>
                     </div>
                 </div>
@@ -219,306 +218,94 @@
     </div>
 
     <script>
+        window.onerror = function(msg, url, line) { document.getElementById('debug-console').style.display = 'block'; document.getElementById('error-msg').innerText += `Error: ${msg}\nLine: ${line}\n`; };
         const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
-        // 🔥 您的金鑰 (roma-2026)
-        const firebaseConfig = {
-            apiKey: "AIzaSyDotF5SMPWJ_gNKCFzH_ACIc8qi1xczd-k",
-            authDomain: "roma-2026.firebaseapp.com",
-            databaseURL: "https://roma-2026-default-rtdb.firebaseio.com",
-            projectId: "roma-2026",
-            storageBucket: "roma-2026.firebasestorage.app",
-            messagingSenderId: "701129098052",
-            appId: "1:701129098052:web:87288ea8be59525b940d11"
-        };
-
-        try {
-            firebase.initializeApp(firebaseConfig);
-        } catch(e) { console.error(e); }
+        const firebaseConfig = { apiKey: "AIzaSyDotF5SMPWJ_gNKCFzH_ACIc8qi1xczd-k", authDomain: "roma-2026.firebaseapp.com", databaseURL: "https://roma-2026-default-rtdb.firebaseio.com", projectId: "roma-2026", storageBucket: "roma-2026.firebasestorage.app", messagingSenderId: "701129098052", appId: "1:701129098052:web:87288ea8be59525b940d11" };
+        try { firebase.initializeApp(firebaseConfig); } catch(e) { document.getElementById('debug-console').style.display = 'block'; document.getElementById('error-msg').innerText += e.message; }
         const db = firebase.database();
 
         createApp({
             setup() {
-                const currentTab = ref('itinerary');
-                const showModal = ref(false);
-                const isEditing = ref(false);
-                const isSearching = ref(false);
-                const isDataLoaded = ref(false);
-                const isSaving = ref(false);
-                const suggestions = ref([]);
-                const searchTimeout = ref(null);
-                
-                const itineraryListRef = ref(null);
-                const expenseListRef = ref(null);
-                const sortableInstance = ref(null);
-                const mapInstance = ref(null);
-                const markers = ref([]);
-                const polylines = ref([]);
-
-                const generateDates = () => {
-                    const start = new Date('2026-05-19');
-                    const end = new Date('2026-06-02');
-                    let list = [];
-                    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-                    for (let d = start; d <= end; d.setDate(d.getDate() + 1)) {
-                        const m = d.getMonth() + 1;
-                        const full = d.toISOString().split('T')[0];
-                        list.push({ month: months[d.getMonth()], day: d.getDate(), full: full });
-                    }
-                    return list;
-                };
-
-                const dates = ref(generateDates());
-                const selectedDate = ref('2026-05-19');
-                
-                const GEO_DB = {
-                    '羅馬': {lat: 41.902782, lng: 12.496366}, '特米尼車站': {lat: 41.9009, lng: 12.5020},
-                    '羅馬機場': {lat: 41.8002, lng: 12.2388}, '羅馬競技場': {lat: 41.8902102, lng: 12.4922309},
-                    '梵蒂岡': {lat: 41.902916, lng: 12.453389}, '聖彼得大教堂': {lat: 41.902167, lng: 12.453936},
-                    '許願池': {lat: 41.900932, lng: 12.483313}, '萬神殿': {lat: 41.898611, lng: 12.476873},
-                    '西班牙廣場': {lat: 41.905698, lng: 12.482327}, '納沃納廣場': {lat: 41.899163, lng: 12.473074},
-                    '真理之口': {lat: 41.888147, lng: 12.481822}, '威尼斯廣場': {lat: 41.895822, lng: 12.482322},
-                    '聖天使堡': {lat: 41.903064, lng: 12.466276}, '金杯咖啡': {lat: 41.899133, lng: 12.477213},
-                    '老橋冰淇淋': {lat: 41.906041, lng: 12.456637}, '提拉米蘇': {lat: 41.882315, lng: 12.511132},
-                    '喬立帝冰淇淋': {lat: 41.901037, lng: 12.478542}, '鹿角咖啡': {lat: 41.898333, lng: 12.477222}
-                };
-
-                const itinerary = ref([]);
-                const expenses = ref([]);
-                const checklist = ref([]);
-                const form = ref({ id: null, date: '', time: '', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR', lat: '', lng: '' });
-                const newCheckItem = ref('');
-
+                const currentTab = ref('itinerary'); const showModal = ref(false); const isEditing = ref(false); const isSearching = ref(false); const isDataLoaded = ref(false); const isSaving = ref(false); const suggestions = ref([]); const searchTimeout = ref(null);
+                const itineraryListRef = ref(null); const expenseListRef = ref(null); const sortableInstance = ref(null); const mapInstance = ref(null); const markers = ref([]); const polylines = ref([]);
+                const generateDates = () => { const start = new Date('2026-05-19'); const end = new Date('2026-06-02'); let list = []; const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']; for (let d = start; d <= end; d.setDate(d.getDate() + 1)) { const m = d.getMonth() + 1; const full = d.toISOString().split('T')[0]; list.push({ month: months[d.getMonth()], day: d.getDate(), full: full }); } return list; };
+                const dates = ref(generateDates()); const selectedDate = ref('2026-05-19');
+                const GEO_DB = { '羅馬': {lat: 41.902782, lng: 12.496366}, '特米尼車站': {lat: 41.9009, lng: 12.5020}, '羅馬機場': {lat: 41.8002, lng: 12.2388}, '羅馬競技場': {lat: 41.8902102, lng: 12.4922309}, '梵蒂岡': {lat: 41.902916, lng: 12.453389}, '聖彼得大教堂': {lat: 41.902167, lng: 12.453936}, '許願池': {lat: 41.900932, lng: 12.483313}, '萬神殿': {lat: 41.898611, lng: 12.476873}, '西班牙廣場': {lat: 41.905698, lng: 12.482327}, '納沃納廣場': {lat: 41.899163, lng: 12.473074}, '真理之口': {lat: 41.888147, lng: 12.481822}, '威尼斯廣場': {lat: 41.895822, lng: 12.482322}, '聖天使堡': {lat: 41.903064, lng: 12.466276}, '金杯咖啡': {lat: 41.899133, lng: 12.477213}, '老橋冰淇淋': {lat: 41.906041, lng: 12.456637}, '提拉米蘇': {lat: 41.882315, lng: 12.511132}, '喬立帝冰淇淋': {lat: 41.901037, lng: 12.478542}, '鹿角咖啡': {lat: 41.898333, lng: 12.477222} };
+                const itinerary = ref([]); const expenses = ref([]); const checklist = ref([]); const form = ref({ id: null, date: '', time: '', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR', lat: '', lng: '' }); const newCheckItem = ref('');
                 onMounted(async () => {
-                    db.ref('trips/rome2026/itinerary').on('value', (snapshot) => {
-                        const data = snapshot.val();
-                        itinerary.value = data ? Object.values(data) : [];
-                        isDataLoaded.value = true;
-                        if (currentTab.value === 'map') nextTick(() => initMap());
-                    });
+                    db.ref('trips/rome2026/itinerary').on('value', (snapshot) => { const data = snapshot.val(); itinerary.value = data ? Object.values(data) : []; isDataLoaded.value = true; if (currentTab.value === 'map') nextTick(() => initMap()); });
                     db.ref('trips/rome2026/expenses').on('value', (s) => expenses.value = s.val() ? Object.values(s.val()) : []);
                     db.ref('trips/rome2026/checklist').on('value', (s) => checklist.value = s.val() ? Object.values(s.val()) : []);
-                    await nextTick();
-                    updateSortable();
+                    await nextTick(); updateSortable();
                 });
-
-                const updateOrder = () => {
-                    const updates = {};
-                    itinerary.value.forEach(item => updates[`trips/rome2026/itinerary/${item.id}/order`] = item.order);
-                    expenses.value.forEach(item => updates[`trips/rome2026/expenses/${item.id}/order`] = item.order);
-                    if(Object.keys(updates).length > 0) db.ref().update(updates);
-                };
-
-                const onLocationInput = () => {
-                    const query = form.value.location;
-                    if (searchTimeout.value) clearTimeout(searchTimeout.value);
-                    if (!query || query.length < 1) { suggestions.value = []; return; }
-
-                    searchTimeout.value = setTimeout(async () => {
-                        isSearching.value = true;
-                        let results = [];
-                        for (const key in GEO_DB) {
-                            if (key.includes(query) || query.includes(key)) {
-                                results.push({ display_name: key + " (內建資料)", lat: GEO_DB[key].lat, lon: GEO_DB[key].lng });
-                            }
-                        }
-                        try {
-                            const apiQuery = `${query} Italy`; 
-                            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(apiQuery)}&limit=5&accept-language=zh-TW`);
-                            const data = await response.json();
-                            if (data) results = [...results, ...data];
-                        } catch (e) { console.error("API Error"); }
-                        suggestions.value = results;
-                        isSearching.value = false;
-                    }, 500);
-                };
-
-                const selectSuggestion = (item) => {
-                    form.value.location = item.display_name.split(',')[0]; 
-                    form.value.lat = parseFloat(item.lat);
-                    form.value.lng = parseFloat(item.lon);
-                    suggestions.value = [];
-                };
-
-                const currentDayItinerary = computed(() => {
-                    return itinerary.value.filter(i => i.date === selectedDate.value).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                });
-
-                const currentDayExpenses = computed(() => {
-                    return expenses.value.filter(e => e.date === selectedDate.value).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-                });
-                
+                const updateOrder = () => { const updates = {}; itinerary.value.forEach(item => updates[`trips/rome2026/itinerary/${item.id}/order`] = item.order); expenses.value.forEach(item => updates[`trips/rome2026/expenses/${item.id}/order`] = item.order); if(Object.keys(updates).length > 0) db.ref().update(updates); };
+                const onLocationInput = () => { const query = form.value.location; if (searchTimeout.value) clearTimeout(searchTimeout.value); if (!query || query.length < 1) { suggestions.value = []; return; } searchTimeout.value = setTimeout(async () => { isSearching.value = true; let results = []; for (const key in GEO_DB) { if (key.includes(query) || query.includes(key)) { results.push({ display_name: key + " (內建資料)", lat: GEO_DB[key].lat, lon: GEO_DB[key].lng }); } } try { const apiQuery = `${query} Italy`; const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(apiQuery)}&limit=5&accept-language=zh-TW`); const data = await response.json(); if (data) results = [...results, ...data]; } catch (e) { console.error("API Error"); } suggestions.value = results; isSearching.value = false; }, 500); };
+                const selectSuggestion = (item) => { form.value.location = item.display_name.split(',')[0]; form.value.lat = parseFloat(item.lat); form.value.lng = parseFloat(item.lon); suggestions.value = []; };
+                const currentDayItinerary = computed(() => { return itinerary.value.filter(i => i.date === selectedDate.value).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); });
+                const currentDayExpenses = computed(() => { return expenses.value.filter(e => e.date === selectedDate.value).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)); });
                 const dayTotalEUR = computed(() => currentDayExpenses.value.filter(e => e.currency === 'EUR').reduce((sum, e) => sum + Number(e.amount), 0));
                 const dayTotalTWD = computed(() => currentDayExpenses.value.filter(e => e.currency === 'TWD').reduce((sum, e) => sum + Number(e.amount), 0));
-                
-                const currentFullDateDisplay = computed(() => {
-                    const d = dates.value.find(d => d.full === selectedDate.value);
-                    return d ? `${d.month} ${d.day}` : '';
-                });
-
+                const currentFullDateDisplay = computed(() => { const d = dates.value.find(d => d.full === selectedDate.value); return d ? `${d.month} ${d.day}` : ''; });
                 const hasEvent = (date) => itinerary.value.some(i => i.date === date);
-
-                const selectDate = (index) => {
-                    selectedDate.value = dates.value[index].full;
-                    nextTick(() => {
-                        const btn = document.getElementById('date-btn-' + index);
-                        if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                    });
-                };
-
-                const updateSortable = () => {
-                    if (sortableInstance.value) { sortableInstance.value.destroy(); sortableInstance.value = null; }
-                    let el = null, listRef = null, globalDataRef = null;
-                    if (currentTab.value === 'itinerary') { el = itineraryListRef.value; listRef = currentDayItinerary; globalDataRef = itinerary; } 
-                    else if (currentTab.value === 'expenses') { el = expenseListRef.value; listRef = currentDayExpenses; globalDataRef = expenses; }
-
-                    if (el) {
-                        sortableInstance.value = new Sortable(el, {
-                            animation: 150, delay: 300, delayOnTouchOnly: false, touchStartThreshold: 5,
-                            ghostClass: 'sortable-ghost', dragClass: 'sortable-drag',
-                            draggable: '.item-card',
-                            filter: '.card-actions', // 🔥 確保按鈕區不會被拖曳干擾
-                            onEnd: (evt) => {
-                                const currentList = [...listRef.value];
-                                const [movedItem] = currentList.splice(evt.oldIndex, 1);
-                                currentList.splice(evt.newIndex, 0, movedItem);
-                                currentList.forEach((item, index) => {
-                                    const itemInGlobal = globalDataRef.value.find(i => i.id === item.id);
-                                    if(itemInGlobal) itemInGlobal.order = index;
-                                });
-                                updateOrder(); 
-                            }
-                        });
-                    }
-                };
-
-                const initMap = () => {
-                    const container = document.getElementById('map-container');
-                    if (!container) return;
-                    if (mapInstance.value) { mapInstance.value.remove(); mapInstance.value = null; }
-
-                    const map = L.map('map-container').setView([41.9028, 12.4964], 13);
-                    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{ maxZoom: 20, attribution: 'Google Maps' }).addTo(map);
-
-                    markers.value = [];
-                    polylines.value = [];
-                    const bounds = L.latLngBounds();
-                    const pathCoordinates = [];
-                    
-                    currentDayItinerary.value.forEach((item, index) => {
-                        if (item.lat && item.lng && item.lat !== '' && item.lng !== '') {
-                            const pinIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="custom-pin-icon"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] });
-                            const marker = L.marker([item.lat, item.lng], {icon: pinIcon}).addTo(map)
-                                .bindPopup(`
-                                    <div class="popup-header"><span>${item.location}</span><span style="font-size:12px;opacity:0.8">${item.time}</span></div>
-                                    <div class="popup-body">
-                                        ${item.note || ''}
-                                        <a href="http://googleusercontent.com/maps.google.com/search/${encodeURIComponent(item.location + ' Italy')}" target="_blank" class="popup-btn">
-                                            <i class="fa-solid fa-location-arrow"></i> Google 導航
-                                        </a>
-                                    </div>
-                                `);
-                            markers.value.push(marker);
-                            bounds.extend([item.lat, item.lng]);
-                            pathCoordinates.push([item.lat, item.lng]);
-                        }
-                    });
-
-                    if (pathCoordinates.length > 1) {
-                        L.polyline(pathCoordinates, { color: '#8E3228', weight: 3, opacity: 0.7, dashArray: '10, 10' }).addTo(map);
-                    }
-
-                    if (markers.value.length > 0) { map.fitBounds(bounds, { padding: [50, 50] }); }
-                    mapInstance.value = map;
-                };
-
-                const locateMe = () => {
-                    if (!mapInstance.value) return;
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(position => {
-                            const { latitude, longitude } = position.coords;
-                            L.marker([latitude, longitude]).addTo(mapInstance.value).bindPopup("您在這裡").openPopup();
-                            mapInstance.value.setView([latitude, longitude], 15);
-                        });
-                    }
-                };
-
-                watch([selectedDate, currentTab], async () => {
-                    await nextTick();
-                    updateSortable();
-                    if (currentTab.value === 'map') {
-                        setTimeout(() => {
-                            initMap(); 
-                            if(mapInstance.value) mapInstance.value.invalidateSize();
-                        }, 100);
-                    }
-                });
-
-                const openModal = () => { 
-                    isEditing.value = false; 
-                    suggestions.value = [];
-                    form.value = { id: null, date: selectedDate.value, time: '09:00', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR', lat: '', lng: '' }; 
-                    showModal.value = true; 
-                };
+                const selectDate = (index) => { selectedDate.value = dates.value[index].full; nextTick(() => { const btn = document.getElementById('date-btn-' + index); if (btn) btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }); };
+                const updateSortable = () => { if (sortableInstance.value) { sortableInstance.value.destroy(); sortableInstance.value = null; } let el = null; if (currentTab.value === 'itinerary') el = itineraryListRef.value; else if (currentTab.value === 'expenses') el = expenseListRef.value; if (el) { sortableInstance.value = new Sortable(el, { animation: 150, delay: 300, delayOnTouchOnly: false, touchStartThreshold: 5, ghostClass: 'sortable-ghost', dragClass: 'sortable-drag', draggable: '.item-card', filter: '.card-actions', onEnd: (evt) => { const list = currentTab.value === 'itinerary' ? currentDayItinerary.value : currentDayExpenses.value; const currentList = [...list]; const [movedItem] = currentList.splice(evt.oldIndex, 1); currentList.splice(evt.newIndex, 0, movedItem); currentList.forEach((item, index) => { const sourceList = currentTab.value === 'itinerary' ? itinerary : expenses; const realItem = sourceList.value.find(i => i.id === item.id); if(realItem) realItem.order = index; }); updateOrder(); } }); } };
+                const initMap = () => { const container = document.getElementById('map-container'); if (!container) return; if (mapInstance.value) { mapInstance.value.remove(); mapInstance.value = null; } const map = L.map('map-container').setView([41.9028, 12.4964], 13); L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{ maxZoom: 20, attribution: 'Google Maps' }).addTo(map); markers.value = []; polylines.value = []; const bounds = L.latLngBounds(); const pathCoordinates = []; currentDayItinerary.value.forEach((item) => { if (item.lat && item.lng) { const pinIcon = L.divIcon({ className: 'custom-div-icon', html: `<div class="custom-pin-icon"></div>`, iconSize: [14, 14], iconAnchor: [7, 7] }); const marker = L.marker([item.lat, item.lng], {icon: pinIcon}).addTo(map).bindPopup(`${item.location}`); markers.value.push(marker); bounds.extend([item.lat, item.lng]); pathCoordinates.push([item.lat, item.lng]); } }); if (pathCoordinates.length > 1) L.polyline(pathCoordinates, { color: '#8E3228', weight: 3, opacity: 0.7, dashArray: '10, 10' }).addTo(map); if (markers.value.length > 0) map.fitBounds(bounds, { padding: [50, 50] }); mapInstance.value = map; };
+                const locateMe = () => { if (!mapInstance.value) return; if (navigator.geolocation) { navigator.geolocation.getCurrentPosition(position => { const { latitude, longitude } = position.coords; L.marker([latitude, longitude]).addTo(mapInstance.value).bindPopup("You").openPopup(); mapInstance.value.setView([latitude, longitude], 15); }); } };
+                watch([selectedDate, currentTab], async () => { await nextTick(); updateSortable(); if (currentTab.value === 'map') setTimeout(() => { initMap(); if(mapInstance.value) mapInstance.value.invalidateSize(); }, 100); });
+                const openModal = () => { isEditing.value = false; suggestions.value = []; form.value = { id: null, date: selectedDate.value, time: '09:00', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR', lat: '', lng: '' }; showModal.value = true; };
                 const editItem = (item) => { isEditing.value = true; suggestions.value = []; form.value = { ...item }; showModal.value = true; };
                 const editExpense = (exp) => { isEditing.value = true; form.value = { ...exp }; showModal.value = true; };
                 const closeModal = () => { showModal.value = false; isEditing.value = false; isSaving.value = false; };
+                const toggleCheck = (item) => { item.checked = !item.checked; db.ref(`trips/rome2026/checklist/${item.id}`).update({checked: item.checked}); };
+                const addChecklistItem = () => { if (!newCheckItem.value.trim()) return; const newKey = db.ref().child('trips/rome2026/checklist').push().key; const newItem = { id: newKey, text: newCheckItem.value, checked: false }; db.ref(`trips/rome2026/checklist/${newKey}`).set(newItem); newCheckItem.value = ''; };
+                const deleteChecklistItem = (id) => { db.ref(`trips/rome2026/checklist/${id}`).remove(); }; // Checklist delete direct
                 
-                const toggleCheck = (item) => { 
-                    item.checked = !item.checked; 
-                    db.ref(`trips/rome2026/checklist/${item.id}`).update({checked: item.checked});
-                };
-                
-                const addChecklistItem = () => { 
-                    if (!newCheckItem.value.trim()) return; 
-                    const newKey = db.ref().child('trips/rome2026/checklist').push().key; 
-                    const newItem = { id: newKey, text: newCheckItem.value, checked: false };
-                    db.ref(`trips/rome2026/checklist/${newKey}`).set(newItem);
-                    newCheckItem.value = '';
-                };
-                
-                const deleteChecklistItem = (id) => { 
-                    if(confirm('確定刪除此項目？')) { db.ref(`trips/rome2026/checklist/${id}`).remove(); }
-                };
-                
-                // 🔥 修復：安全的刪除功能
+                // 🔥🔥🔥 修正：極速刪除 (無 confirm 視窗) 🔥🔥🔥
                 const deleteItem = (id, type) => { 
-                    if (!id) { alert("錯誤：找不到該項目 ID"); return; }
-                    if(confirm('確定要刪除這筆資料嗎？')) { 
-                        // 1. 畫面先移除 (不用等伺服器回應)
-                        if(type === 'itinerary') itinerary.value = itinerary.value.filter(i => i.id !== id);
-                        else expenses.value = expenses.value.filter(i => i.id !== id);
-                        
-                        // 2. 傳送刪除指令
-                        db.ref(`trips/rome2026/${type}/${id}`).remove()
-                            .catch(err => alert("刪除失敗：" + err.message));
-                    }
+                    if (!id) return;
+                    // 1. 視覺上立刻移除 (不用等伺服器)
+                    if(type === 'itinerary') itinerary.value = itinerary.value.filter(i => i.id !== id);
+                    else expenses.value = expenses.value.filter(i => i.id !== id);
+                    
+                    // 2. 背景發送刪除指令
+                    db.ref(`trips/rome2026/${type}/${id}`).remove()
+                        .catch(err => { alert("刪除失敗，請檢查網路"); location.reload(); });
                 };
 
+                // 🔥🔥🔥 修正：編輯功能 Bug (確保不覆蓋原有資料) 🔥🔥🔥
                 const submitForm = async () => {
                     isSaving.value = true;
-                    if (currentTab.value === 'itinerary') {
-                        if (!form.value.location) { isSaving.value = false; return; }
+                    try {
+                        const targetRef = currentTab.value === 'itinerary' ? 'itinerary' : 'expenses';
                         let itemId = form.value.id;
                         let itemOrder = form.value.order;
+
                         if (!isEditing.value) {
-                            itemId = db.ref().child('trips/rome2026/itinerary').push().key;
-                            itemOrder = currentDayItinerary.value.length; 
+                            const newRef = db.ref(`trips/rome2026/${targetRef}`).push();
+                            itemId = newRef.key;
+                            itemOrder = (currentTab.value === 'itinerary' ? currentDayItinerary.value.length : currentDayExpenses.value.length);
                         }
-                        const itemToSave = { id: itemId, ...form.value, weather: null, order: itemOrder };
-                        await db.ref(`trips/rome2026/itinerary/${itemId}`).set(itemToSave);
-                    } else { 
-                        if (!form.value.amount) { isSaving.value = false; return; }
-                        let itemId = form.value.id;
-                        let itemOrder = form.value.order;
-                        if (!isEditing.value) {
-                            itemId = db.ref().child('trips/rome2026/expenses').push().key;
-                            itemOrder = currentDayExpenses.value.length;
+
+                        // 核心修復：使用展開運算子保留所有資料，並強制更新 ID 與順序
+                        const itemToSave = {
+                            id: itemId,
+                            ...form.value,
+                            order: itemOrder !== undefined ? itemOrder : 0
+                        };
+                        
+                        // 僅在全新增時且無資料才預設 null (避免編輯時覆蓋)
+                        if (currentTab.value === 'itinerary' && !itemToSave.weather && !isEditing.value) {
+                            itemToSave.weather = null;
                         }
-                        const itemToSave = { id: itemId, ...form.value, order: itemOrder };
-                        await db.ref(`trips/rome2026/expenses/${itemId}`).set(itemToSave);
+
+                        await db.ref(`trips/rome2026/${targetRef}/${itemId}`).update(itemToSave);
+                        closeModal();
+                    } catch (e) {
+                        alert("儲存失敗: " + e.message);
+                    } finally {
+                        isSaving.value = false;
                     }
-                    closeModal();
                 };
 
                 const getWeatherIcon = (code) => { if (code <= 1) return 'fa-solid fa-sun text-yellow-500'; if (code <= 3) return 'fa-solid fa-cloud-sun text-gray-400'; return 'fa-solid fa-cloud-rain text-blue-400'; };
