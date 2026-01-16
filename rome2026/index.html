@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 南義之旅</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f3f4f6; user-select: none; -webkit-user-select: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        /* 紅色標記點 */
+        .custom-pin-icon {
+            background-color: #ef4444; 
+            width: 16px; height: 16px; 
+            border-radius: 50%; 
+            border: 2px solid white; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        /* 選中日期樣式 */
+        .date-active { background-color: #b91c1c !important; color: white !important; transform: scale(1.05); }
+        .date-inactive { background-color: white; color: #374151; border: 1px solid #e5e7eb; }
+        
+        /* 右下角懸浮按鈕 */
+        .fab-btn { background-color: #b91c1c; box-shadow: 0 4px 12px rgba(185, 28, 28, 0.4); }
+        .fab-btn:active { transform: scale(0.95); }
+
+        /* 搜尋建議列表 */
+        .suggestions-list { position: absolute; top: 100%; left: 0; width: 100%; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; z-index: 999; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .suggestion-item { padding: 10px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #f3f4f6; }
+        .suggestion-item:hover { background-color: #fee2e2; color: #b91c1c; }
+
+        /* 拖曳時的樣式 */
+        .sortable-ghost { opacity: 0.2; background: #fee2e2; }
+        
+        #map-container { height: 100%; width: 100%; border-radius: 12px; z-index: 1; }
+    </style>
+</head>
+<body class="h-screen flex justify-center bg-gray-200">
+
+    <div id="app" class="w-full max-w-md h-full bg-[#fcfcfc] flex flex-col relative sm:h-[95vh] sm:my-auto sm:rounded-3xl sm:shadow-2xl overflow-hidden" v-cloak>
+        
+        <header class="bg-[#b91c1c] text-white p-5 pt-8 shadow-md z-20 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold flex items-center gap-2"><i class="fa-solid fa-plane"></i> 2026 南義之旅</h1>
+                <div class="text-xs opacity-80 mt-1 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-green-400" v-if="isDataLoaded"></span>
+                    <span class="w-2 h-2 rounded-full bg-red-400 animate-pulse" v-else></span>
+                    {{ isDataLoaded ? '已連線同步' : '連線中...' }}
+                </div>
+            </div>
+            <div class="text-2xl">🇮🇹</div>
+        </header>
+
+        <div v-if="currentTab !== 'map' && currentTab !== 'checklist'" class="bg-white p-3 border-b shadow-sm z-10">
+            <div class="flex overflow-x-auto no-scrollbar gap-3 px-2 pb-1" id="date-scroll">
+                <button v-for="(d, index) in dates" :key="d.full" @click="selectDate(index)" 
+                    :id="'date-' + index"
+                    class="flex-shrink-0 w-14 h-16 rounded-xl flex flex-col items-center justify-center transition-all"
+                    :class="selectedDate === d.full ? 'date-active' : 'date-inactive'">
+                    <span class="text-[10px] font-bold opacity-80">{{ d.month }}</span>
+                    <span class="text-lg font-bold">{{ d.day }}</span>
+                    <div v-if="hasEvent(d.full)" class="w-1 h-1 rounded-full mt-1" :class="selectedDate === d.full ? 'bg-white' : 'bg-red-600'"></div>
+                </button>
+            </div>
+        </div>
+
+        <main class="flex-1 overflow-y-auto no-scrollbar p-4 pb-24 relative bg-gray-50">
+            
+            <div v-show="currentTab === 'itinerary'">
+                <div ref="itineraryListRef" class="space-y-3 min-h-[100px]">
+                    <div v-for="item in currentDayItinerary" :key="item.id" :data-id="item.id" class="item-card bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#b91c1c] flex gap-3 relative">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded font-bold">{{ item.time }}</span>
+                            </div>
+                            <h3 class="font-bold text-gray-800 text-lg">{{ item.location }}</h3>
+                            <p class="text-sm text-gray-500 mt-1">{{ item.note }}</p>
+                            <a :href="`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}`" target="_blank" class="inline-flex items-center text-xs text-blue-600 font-bold mt-2 hover:underline">
+                                <i class="fa-solid fa-diamond-turn-right mr-1"></i> 導航
+                            </a>
+                        </div>
+                        <div class="flex flex-col justify-center gap-3 border-l pl-3 ml-1">
+                            <button @click.stop="editItem(item)" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-gray-200"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button @click.stop="deleteItem(item.id, 'itinerary')" class="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="currentDayItinerary.length === 0" class="text-center py-10 text-gray-400 text-sm">
+                    本日尚無行程，請點擊右下角新增
+                </div>
+            </div>
+
+            <div v-show="currentTab === 'expenses'">
+                <div class="bg-gray-800 text-white p-4 rounded-xl shadow-lg mb-4 flex divide-x divide-gray-600">
+                    <div class="flex-1 text-center"><div class="text-xs text-gray-400">總支出 (歐元)</div><div class="text-xl font-bold text-yellow-400">€{{ dayTotalEUR }}</div></div>
+                    <div class="flex-1 text-center"><div class="text-xs text-gray-400">總支出 (台幣)</div><div class="text-xl font-bold text-blue-300">${{ dayTotalTWD }}</div></div>
+                </div>
+                <div ref="expenseListRef" class="space-y-3">
+                    <div v-for="exp in currentDayExpenses" :key="exp.id" :data-id="exp.id" class="item-card bg-white p-3 rounded-xl shadow-sm border-l-4 flex items-center justify-between" :class="exp.currency === 'EUR' ? 'border-yellow-500' : 'border-blue-500'">
+                        <div>
+                            <div class="font-bold text-gray-800">{{ exp.item }}</div>
+                            <div class="text-xs text-gray-500">{{ exp.category }}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="font-bold text-lg font-mono">{{ exp.currency === 'EUR' ? '€' : '$' }}{{ exp.amount }}</div>
+                            <button @click.stop="deleteItem(exp.id, 'expenses')" class="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div v-show="currentTab === 'map'" class="h-full flex flex-col">
+                <div class="bg-white p-2 rounded-lg shadow-sm mb-2 text-center text-sm font-bold text-gray-700">
+                    {{ dates.find(d => d.full === selectedDate)?.month }}{{ dates.find(d => d.full === selectedDate)?.day }} 行程地圖
+                </div>
+                <div id="map-container"></div>
+            </div>
+
+            <div v-show="currentTab === 'checklist'">
+                <div class="bg-white p-4 rounded-xl shadow-sm">
+                    <h2 class="font-bold text-lg mb-4 text-[#b91c1c] border-b pb-2">行前準備清單</h2>
+                    <div v-for="item in checklist" :key="item.id" class="flex items-center py-3 border-b last:border-0 cursor-pointer" @click="toggleCheck(item)">
+                        <div class="w-5 h-5 border-2 rounded mr-3 flex items-center justify-center transition-colors" :class="item.checked ? 'bg-green-500 border-green-500' : 'border-gray-300'">
+                            <i v-if="item.checked" class="fa-solid fa-check text-white text-xs"></i>
+                        </div>
+                        <span :class="item.checked ? 'line-through text-gray-400' : 'text-gray-700'" class="flex-1">{{ item.text }}</span>
+                        <button @click.stop="deleteChecklistItem(item.id)" class="text-gray-300 hover:text-red-500 px-2"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                    <div class="flex mt-4 gap-2">
+                        <input v-model="newCheckItem" @keyup.enter="addChecklistItem" placeholder="新增待辦事項..." class="flex-1 bg-gray-50 border rounded-lg px-3 py-2 outline-none">
+                        <button @click="addChecklistItem" class="bg-[#b91c1c] text-white px-4 rounded-lg"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <nav class="bg-white border-t p-2 pb-6 flex justify-around items-center z-40">
+            <button @click="currentTab='itinerary'" class="flex flex-col items-center w-16 py-1" :class="currentTab==='itinerary'?'text-[#b91c1c]':'text-gray-400'"><i class="fa-regular fa-calendar-days text-xl mb-1"></i><span class="text-[10px]">行程</span></button>
+            <button @click="currentTab='expenses'" class="flex flex-col items-center w-16 py-1" :class="currentTab==='expenses'?'text-[#b91c1c]':'text-gray-400'"><i class="fa-solid fa-wallet text-xl mb-1"></i><span class="text-[10px]">帳務</span></button>
+            <button @click="currentTab='map'" class="flex flex-col items-center w-16 py-1" :class="currentTab==='map'?'text-[#b91c1c]':'text-gray-400'"><i class="fa-regular fa-map text-xl mb-1"></i><span class="text-[10px]">地圖</span></button>
+            <button @click="currentTab='checklist'" class="flex flex-col items-center w-16 py-1" :class="currentTab==='checklist'?'text-[#b91c1c]':'text-gray-400'"><i class="fa-solid fa-list-check text-xl mb-1"></i><span class="text-[10px]">清單</span></button>
+        </nav>
+
+        <button v-if="['itinerary', 'expenses'].includes(currentTab)" @click="openModal()" class="fab-btn absolute bottom-24 right-5 w-14 h-14 rounded-full text-white flex items-center justify-center text-xl z-30 transition-transform">
+            <i class="fa-solid fa-plus"></i>
+        </button>
+
+        <div v-if="showModal" class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 backdrop-blur-sm" @click.self="closeModal">
+            <div class="bg-white w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-6 animate-[slideUp_0.3s_ease-out]">
+                <h3 class="text-xl font-bold text-center mb-6 text-gray-800">{{ isEditing ? '修改項目' : '新增項目' }}</h3>
+                
+                <div v-if="currentTab === 'itinerary'" class="space-y-4">
+                    <div class="flex items-center bg-gray-50 rounded-xl px-3 border"><i class="fa-regular fa-calendar text-gray-400 mr-2"></i><select v-model="form.date" class="w-full bg-transparent py-3 outline-none"><option v-for="d in dates" :value="d.full">{{ d.month }} {{ d.day }}</option></select></div>
+                    <div class="flex items-center bg-gray-50 rounded-xl px-3 border"><i class="fa-regular fa-clock text-gray-400 mr-2"></i><input v-model="form.time" type="time" class="w-full bg-transparent py-3 outline-none"></div>
+                    <div class="relative">
+                        <div class="flex items-center bg-gray-50 rounded-xl px-3 border"><i class="fa-solid fa-location-dot text-gray-400 mr-2"></i><input v-model="form.location" @input="onLocationInput" placeholder="輸入地點 (自動搜尋)" class="w-full bg-transparent py-3 outline-none"></div>
+                        <ul v-if="suggestions.length" class="suggestions-list">
+                            <li v-for="s in suggestions" @click="selectSuggestion(s)" class="suggestion-item">{{ s.display_name.split(',')[0] }}</li>
+                        </ul>
+                    </div>
+                    <textarea v-model="form.note" placeholder="備註事項" class="w-full bg-gray-50 rounded-xl px-3 py-3 border h-24 outline-none resize-none"></textarea>
+                </div>
+
+                <div v-else class="space-y-4">
+                    <div class="flex items-center bg-gray-50 rounded-xl px-3 border"><i class="fa-regular fa-calendar text-gray-400 mr-2"></i><select v-model="form.date" class="w-full bg-transparent py-3 outline-none"><option v-for="d in dates" :value="d.full">{{ d.month }} {{ d.day }}</option></select></div>
+                    <input v-model="form.item" placeholder="消費項目" class="w-full bg-gray-50 rounded-xl px-4 py-3 border outline-none">
+                    <div class="flex gap-2">
+                        <input v-model="form.amount" type="number" placeholder="金額" class="flex-1 bg-gray-50 rounded-xl px-4 py-3 border outline-none">
+                        <select v-model="form.currency" class="bg-gray-50 rounded-xl px-2 border outline-none"><option value="EUR">歐元</option><option value="TWD">台幣</option></select>
+                    </div>
+                    <div class="flex gap-2 overflow-x-auto pb-2">
+                        <button v-for="cat in ['飲食','交通','門票','住宿','購物']" @click="form.category=cat" class="px-3 py-1 rounded-full text-xs border" :class="form.category===cat?'bg-gray-800 text-white':'bg-white text-gray-500'">{{ cat }}</button>
+                    </div>
+                </div>
+
+                <div class="flex gap-3 mt-6">
+                    <button @click="closeModal" class="flex-1 py-3 text-gray-500 font-bold bg-gray-100 rounded-xl">取消</button>
+                    <button @click="submitForm" class="flex-1 py-3 text-white font-bold bg-[#b91c1c] rounded-xl shadow-lg" :disabled="isSaving">{{ isSaving ? '處理中...' : '儲存' }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+        // Firebase Config (您的金鑰)
+        const firebaseConfig = { apiKey: "AIzaSyDotF5SMPWJ_gNKCFzH_ACIc8qi1xczd-k", authDomain: "roma-2026.firebaseapp.com", databaseURL: "https://roma-2026-default-rtdb.firebaseio.com", projectId: "roma-2026", storageBucket: "roma-2026.firebasestorage.app", messagingSenderId: "701129098052", appId: "1:701129098052:web:87288ea8be59525b940d11" };
+        try { firebase.initializeApp(firebaseConfig); } catch(e) {}
+        const db = firebase.database();
+
+        createApp({
+            setup() {
+                const currentTab = ref('itinerary'); const showModal = ref(false); const isEditing = ref(false); const isDataLoaded = ref(false); const isSaving = ref(false);
+                const itinerary = ref([]); const expenses = ref([]); const checklist = ref([]); const suggestions = ref([]);
+                const form = ref({ id: null, date: '', time: '09:00', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR', lat: '', lng: '' });
+                const newCheckItem = ref('');
+                
+                // 日期生成 (5/19 - 6/2)
+                const dates = ref([]);
+                const start = new Date('2026-05-19');
+                for (let i=0; i<15; i++) {
+                    const d = new Date(start); d.setDate(start.getDate() + i);
+                    dates.value.push({ month: (d.getMonth()+1)+'月', day: d.getDate(), full: d.toISOString().split('T')[0] });
+                }
+                const selectedDate = ref(dates.value[0].full);
+
+                // 載入資料
+                onMounted(() => {
+                    db.ref('trips/rome2026/itinerary').on('value', s => { itinerary.value = s.val() ? Object.values(s.val()) : []; isDataLoaded.value = true; });
+                    db.ref('trips/rome2026/expenses').on('value', s => { expenses.value = s.val() ? Object.values(s.val()) : []; });
+                    db.ref('trips/rome2026/checklist').on('value', s => { checklist.value = s.val() ? Object.values(s.val()) : []; });
+                });
+
+                // 計算屬性
+                const currentDayItinerary = computed(() => itinerary.value.filter(i => i.date === selectedDate.value).sort((a,b) => a.time.localeCompare(b.time)));
+                const currentDayExpenses = computed(() => expenses.value.filter(e => e.date === selectedDate.value));
+                const dayTotalEUR = computed(() => currentDayExpenses.value.filter(e => e.currency === 'EUR').reduce((s, e) => s + Number(e.amount), 0));
+                const dayTotalTWD = computed(() => currentDayExpenses.value.filter(e => e.currency === 'TWD').reduce((s, e) => s + Number(e.amount), 0));
+                const hasEvent = (d) => itinerary.value.some(i => i.date === d);
+
+                // 🔥 地圖初始化 (使用 OpenStreetMap 解決座標消失問題)
+                const map = ref(null);
+                const initMap = () => {
+                    if (!document.getElementById('map-container')) return;
+                    if (map.value) { map.value.remove(); map.value = null; }
+                    map.value = L.map('map-container').setView([41.9028, 12.4964], 13);
+                    // 使用標準 OSM 圖層，保證載入
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map.value);
+                    
+                    // 畫點
+                    currentDayItinerary.value.forEach(item => {
+                        if (item.lat && item.lng) {
+                            const icon = L.divIcon({ className: 'custom-div-icon', html: `<div class="custom-pin-icon"></div>`, iconSize: [16,16], iconAnchor: [8,8] });
+                            L.marker([item.lat, item.lng], {icon}).addTo(map.value).bindPopup(item.location);
+                        }
+                    });
+                };
+
+                // 監聽地圖切換
+                watch([selectedDate, currentTab], () => { 
+                    if (currentTab.value === 'map') setTimeout(initMap, 100); 
+                });
+
+                // 🔍 搜尋地點 (強制繁體中文)
+                const onLocationInput = async () => {
+                    if (form.value.location.length < 2) return;
+                    // 加入 &accept-language=zh-TW 強制繁體
+                    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${form.value.location}&accept-language=zh-TW&limit=5`);
+                    suggestions.value = await res.json();
+                };
+                const selectSuggestion = (s) => {
+                    form.value.location = s.display_name.split(',')[0]; // 只取第一段名稱，避免太長
+                    form.value.lat = s.lat;
+                    form.value.lng = s.lon;
+                    suggestions.value = [];
+                };
+
+                // ✏️ 編輯與新增
+                const openModal = () => { isEditing.value = false; form.value = { id: null, date: selectedDate.value, time: '09:00', location: '', note: '', item: '', amount: '', category: '飲食', currency: 'EUR' }; showModal.value = true; };
+                const editItem = (item) => { isEditing.value = true; form.value = JSON.parse(JSON.stringify(item)); showModal.value = true; }; // 深拷貝
+                const editExpense = (exp) => { isEditing.value = true; form.value = JSON.parse(JSON.stringify(exp)); showModal.value = true; };
+                
+                const submitForm = async () => {
+                    isSaving.value = true;
+                    const path = currentTab.value === 'itinerary' ? 'itinerary' : 'expenses';
+                    const id = form.value.id || db.ref(`trips/rome2026/${path}`).push().key;
+                    const data = { ...form.value, id, date: selectedDate.value }; // 確保 ID 和日期正確
+                    
+                    try {
+                        await db.ref(`trips/rome2026/${path}/${id}`).update(data);
+                        showModal.value = false;
+                    } catch(e) { alert('儲存失敗，請檢查網路'); }
+                    isSaving.value = false;
+                };
+
+                // 🗑️ 刪除 (單機版特別優化：無需確認，直接移除)
+                const deleteItem = (id, type) => {
+                    // 1. 畫面直接移除 (Optimistic UI)
+                    if (type === 'itinerary') itinerary.value = itinerary.value.filter(i => i.id !== id);
+                    else expenses.value = expenses.value.filter(i => i.id !== id);
+                    
+                    // 2. 背景發送刪除，失敗才報錯
+                    db.ref(`trips/rome2026/${type}/${id}`).remove().catch(e => {
+                        alert("刪除失敗！請確認 Firebase Rules 已設為 true。");
+                        location.reload();
+                    });
+                };
+
+                // 清單功能
+                const toggleCheck = (item) => db.ref(`trips/rome2026/checklist/${item.id}`).update({checked: !item.checked});
+                const addChecklistItem = () => {
+                    if (!newCheckItem.value) return;
+                    const id = db.ref().child('checklist').push().key;
+                    db.ref(`trips/rome2026/checklist/${id}`).set({id, text: newCheckItem.value, checked: false});
+                    newCheckItem.value = '';
+                };
+                const deleteChecklistItem = (id) => db.ref(`trips/rome2026/checklist/${id}`).remove();
+                const locateMe = () => { if(map.value) map.value.locate({setView: true, maxZoom: 15}); };
+                const selectDate = (i) => { selectedDate.value = dates.value[i].full; nextTick(()=>document.getElementById('date-'+i)?.scrollIntoView({inline:'center',behavior:'smooth'})); };
+                const closeModal = () => showModal.value = false;
+                const getCategoryIcon = () => 'fa-solid fa-tag';
+
+                return { currentTab, dates, selectedDate, selectDate, isDataLoaded, currentDayItinerary, currentDayExpenses, dayTotalEUR, dayTotalTWD, hasEvent, showModal, isEditing, isSaving, form, openModal, closeModal, submitForm, editItem, editExpense, deleteItem, onLocationInput, suggestions, selectSuggestion, checklist, newCheckItem, addChecklistItem, toggleCheck, deleteChecklistItem, locateMe, getCategoryIcon };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
